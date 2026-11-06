@@ -64,6 +64,12 @@ Until both are fixed, the chat runs in a clearly labelled **DEMO MODE** (see bel
 
 ## Done
 - Research + risk tests: `scripts/check-0g.ts`, `scripts/fund-compute.ts`
+- **Tier 1 ✅** (verified end-to-end in a headless phone-sized browser against a production build):
+  landing page; onboarding (create company / load Brewline demo); vault upload → browser
+  encryption → 0G Storage (real root hashes + txs); open/decrypt; chat with doc selection;
+  proof badge; Save to vault; Proof screen (raw ciphertext hex from 0G, SHA-256 match,
+  decrypt locally, metadata-only server log with "search for a word" check).
+  Chat currently answers in labelled **DEMO MODE** because sealed inference is blocked (see top).
 
 ## Next
-- Tier 1 app.
+- Tier 2: key ceremony + recovery.
