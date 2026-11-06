@@ -21,8 +21,32 @@ export function serverWalletAddress(): string {
   return getSigner().address;
 }
 
+// Serialize uploads per instance: they share one wallet nonce sequence.
+let queue: Promise<unknown> = Promise.resolve();
+
 /** Upload opaque bytes (already-encrypted ciphertext) to 0G Storage. */
-export async function uploadBytes(bytes: Uint8Array): Promise<StoredBlob> {
+export function uploadBytes(bytes: Uint8Array): Promise<StoredBlob> {
+  const run = queue.then(() => uploadWithRetry(bytes));
+  queue = run.catch(() => undefined);
+  return run;
+}
+
+async function uploadWithRetry(bytes: Uint8Array): Promise<StoredBlob> {
+  let last: Error | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await uploadOnce(bytes);
+    } catch (e) {
+      last = e as Error;
+      // Nonce races (another instance using the same wallet) are retryable.
+      if (!/nonce|replacement|underpriced|timeout|ECONNRESET|socket hang up/i.test(last.message)) break;
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+    }
+  }
+  throw last ?? new Error("0G upload failed");
+}
+
+async function uploadOnce(bytes: Uint8Array): Promise<StoredBlob> {
   if (bytes.length === 0) throw new Error("Refusing to upload empty blob");
   const file = new MemData(bytes);
   const [tree, treeErr] = await file.merkleTree();
@@ -50,4 +74,9 @@ export async function downloadBytes(rootHash: string): Promise<Uint8Array> {
   const [blob, err] = await indexer.downloadToBlob(rootHash, { proof: true });
   if (err) throw new Error(`0G download failed: ${err.message}`);
   return new Uint8Array(await blob.arrayBuffer());
+}
+
+export async function walletBalance0G(): Promise<string> {
+  const s = getSigner();
+  return ethers.formatEther(await s.provider!.getBalance(s.address));
 }

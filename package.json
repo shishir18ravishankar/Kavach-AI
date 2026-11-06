@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/copy-pdf-worker.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -10,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check:0g": "tsx scripts/check-0g.ts",
-    "zg:fund": "tsx scripts/fund-compute.ts"
+    "zg:fund": "tsx scripts/fund-compute.ts",
+    "prebuild": "node scripts/copy-pdf-worker.mjs"
   },
   "dependencies": {
     "@0gfoundation/0g-storage-ts-sdk": "1.2.13",
