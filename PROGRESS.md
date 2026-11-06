@@ -64,12 +64,20 @@ Until both are fixed, the chat runs in a clearly labelled **DEMO MODE** (see bel
 
 ## Done
 - Research + risk tests: `scripts/check-0g.ts`, `scripts/fund-compute.ts`
-- **Tier 1 ✅** (verified end-to-end in a headless phone-sized browser against a production build):
-  landing page; onboarding (create company / load Brewline demo); vault upload → browser
-  encryption → 0G Storage (real root hashes + txs); open/decrypt; chat with doc selection;
-  proof badge; Save to vault; Proof screen (raw ciphertext hex from 0G, SHA-256 match,
-  decrypt locally, metadata-only server log with "search for a word" check).
-  Chat currently answers in labelled **DEMO MODE** because sealed inference is blocked (see top).
+- **Tier 1 ✅** landing, onboarding, Brewline demo, vault (txt/md/csv/PDF) → browser encryption →
+  0G Storage, chat with proof badge + Save to vault, Proof screen. E2E-verified on real 0G.
+  Chat answers in labelled **DEMO MODE** while sealed inference is blocked (see top).
+- **Tier 2 ✅** key ceremony (3 shares, QR, download, confirm, test) + lose key + recover with any 2.
+- **Tier 3 ✅** expiring employee links (key in URL fragment, encrypted manifest on 0G), viewer,
+  revoke-by-rekey with honest limits.
+- **Deliverables ✅** README (Mermaid, 0G usage, honest limits, credits), `submission/logo.png`,
+  `submission/cover.png`, `submission/DEMO_SCRIPT.md`, `submission/FINAL_REPORT.md`.
 
-## Next
-- Tier 2: key ceremony + recovery.
+## Next (needs you)
+- Fund the wallet (top of this file) → `npm run zg:fund -- --yes` → `npm run check:0g`.
+- Deploy to Vercel: steps + env vars in `submission/FINAL_REPORT.md` §4.
+- Re-read `submission/FINAL_REPORT.md` §3 before writing the ETHGlobal description.
+
+## Wallet
+- ~0.108 0G left in the wallet for storage (~0.0012 0G per upload). 0.3 0G sits in the glm-5.3
+  provider sub-account, 0.04 0G in the (unused, centralized) qwen sub-account, 0.01 0G in the ledger.

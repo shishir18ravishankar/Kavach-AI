@@ -86,6 +86,11 @@ export function buildMessages(question: string, docs: ContextDoc[], history: { r
   ];
 }
 
+/** Some open models (e.g. GLM) prepend <think>…</think> reasoning; show only the answer. */
+export function stripReasoning(s: string): string {
+  return s.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+}
+
 export class SealedUnavailable extends Error {
   constructor(message: string) {
     super(message);
@@ -142,7 +147,7 @@ export async function askSealed(question: string, docs: ContextDoc[], history: {
   }
   const data = (await res.json()) as { id?: string; choices?: { message?: { content?: string } }[]; usage?: SealedProof["usage"] };
   const latencyMs = Math.round(performance.now() - t0);
-  const text = data.choices?.[0]?.message?.content?.trim() || "(empty answer)";
+  const text = stripReasoning(data.choices?.[0]?.message?.content ?? "") || "(empty answer)";
   const chatId = res.headers.get("ZG-Res-Key") || data.id || null;
   let verified: boolean | null = null;
   let verifyNote = "No chat ID returned, so the response could not be verified.";

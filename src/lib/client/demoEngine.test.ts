@@ -26,3 +26,11 @@ describe("prompt builder", () => {
     expect(m[m.length - 1]).toEqual({ role: "user", content: "Q?" });
   });
 });
+
+import { stripReasoning } from "./ai";
+describe("stripReasoning", () => {
+  it("removes think blocks", () => {
+    expect(stripReasoning("<think>hmm\nlong</think>\n\nAnswer: 42")).toBe("Answer: 42");
+    expect(stripReasoning("plain")).toBe("plain");
+  });
+});
