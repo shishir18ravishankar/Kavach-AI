@@ -1,26 +1,40 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-ink: #0b1530;
+  --color-ink-soft: #3a4566;
+  --color-muted: #6b7591;
+  --color-line: #e3e7f0;
+  --color-paper: #f6f7fb;
+  --color-card: #ffffff;
+  --color-brand: #1f3a8a;
+  --color-brand-strong: #142a6b;
+  --color-brand-soft: #e8edfb;
+  --color-seal: #0f7a55;
+  --color-seal-soft: #e3f5ee;
+  --color-warn: #a15c00;
+  --color-warn-soft: #fff4e0;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.mono {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/* Keep the bottom tab bar from covering content on phones */
+.pb-safe {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
 }
