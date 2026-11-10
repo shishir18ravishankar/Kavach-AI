@@ -9,9 +9,11 @@ export const ZG = {
   chainId: 16602,
   explorerTx: "https://chainscan-galileo.0g.ai/tx/",
   storageScan: "https://storagescan-galileo.0g.ai",
-  /** Preferred sealed-inference (TeeML) provider on Galileo. */
-  computeProvider:
-    process.env.ZG_COMPUTE_PROVIDER || "0x1cB95Eb66Cc67C62d4DE0CC96726C5A5d82e7C85",
+  /**
+   * Optional pinned sealed-inference provider. When unset, the app picks a
+   * decentralized TeeML chatbot provider from the on-chain service list.
+   */
+  computeProvider: process.env.ZG_COMPUTE_PROVIDER || null,
 } as const;
 
 export function hasPrivateKey(): boolean {

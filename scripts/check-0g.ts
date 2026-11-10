@@ -10,7 +10,7 @@ import { installSandboxProxy } from "./sandbox-proxy";
 installSandboxProxy();
 import { webcrypto } from "node:crypto";
 import { uploadBytes, downloadBytes, serverWalletAddress } from "../src/lib/server/zgStorage";
-import { getProviderInfo, getAccountInfo, mintSessionToken, verifyTeeSignature } from "../src/lib/server/zgCompute";
+import { getProviderInfo, getAccountInfo, mintSessionToken, verifyTeeSignature, listSealedProviders } from "../src/lib/server/zgCompute";
 import { ZG } from "../src/lib/server/config";
 
 async function checkStorage(): Promise<boolean> {
@@ -68,7 +68,9 @@ async function main() {
   let storageOk = false;
   try { storageOk = await checkStorage(); } catch (e) { console.log("STORAGE FAILED:", (e as Error).message); }
   console.log("\n== 0G Sealed Inference ==");
-  const providers = [ZG.computeProvider, ...(process.env.ZG_COMPUTE_FALLBACK ? [process.env.ZG_COMPUTE_FALLBACK] : [])];
+  const sealed = await listSealedProviders();
+  console.log(`sealed providers listed on-chain: ${sealed.map((p) => `${p.model} (${p.provider})`).join(", ") || "none"}`);
+  const providers = ZG.computeProvider ? [ZG.computeProvider] : sealed.map((p) => p.provider);
   let inferenceOk = false;
   for (const p of providers) {
     try { inferenceOk = (await checkProvider(p)) || inferenceOk; } catch (e) { console.log(`  FAILED: ${(e as Error).message}`); }

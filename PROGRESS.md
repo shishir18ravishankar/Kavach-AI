@@ -1,23 +1,15 @@
 # Kavach AI: Progress Log
 
-## ⚠️ WHAT YOU MUST DO (action needed)
+## ⚠️ WHAT YOU MUST DO (updated 2026-11-10, post-hackathon)
 
-1. **Send at least 1 0G (testnet) to the server wallet** `0xF0Cb425B08BcC3733EF8B543A9c71ED6D928Ea2c`.
-   - Why: 0G sealed-inference providers refuse requests unless the per-provider
-     sub-account holds **≥ 1.0 0G locked** (verified, provider error:
-     `insufficient balance: your locked balance is 0.04 0G, but the required minimum is 1.000000 0G`).
-     The sub-account for the sealed provider currently holds 0.3 0G. Shortfall is
-     **~0.8 0G**, plus a little for gas. 1 0G is enough; 2 0G gives headroom.
-   - Where: faucet.0g.ai (0.1/day), the Google Cloud 0G faucet, or **ask at the 0G booth**.
-   - Then run: `npm run zg:fund -- --yes` (deposits into the compute ledger and tops
-     the provider sub-account up to 1.2 0G), then `npm run check:0g` to confirm.
-2. **Ask at the 0G booth:** the only Galileo TeeML open-model provider
-   (`0x1cB95Eb66Cc67C62d4DE0CC96726C5A5d82e7C85`, glm-5.3, Phala dstack) returned
-   `503 upstream connect error ... remote connection failure` and then TLS resets
-   on 2026-11-06 ~11:45 UTC. That's the provider's own backend being down. Ask
-   whether it's expected back, or whether there's another testnet TeeML provider.
-
-Until both are fixed, the chat runs in a clearly labelled **DEMO MODE** (see below).
+1. **Vercel → Project → Settings → Environment Variables → add `ZG_PRIVATE_KEY`** (the throwaway
+   Galileo wallet key, Production + Preview), then **Redeploy**. The live site currently has no key,
+   so nothing reaches 0G. Check afterwards: https://kavach-ai-khaki.vercel.app/api/status
+2. Optional: top up the wallet `0xF0Cb425B08BcC3733EF8B543A9c71ED6D928Ea2c` from faucet.0g.ai now
+   and then (≈0.1 0G left ≈ 80 uploads; uploads stop at a 0.02 0G reserve).
+3. Sealed AI: no 0G-acknowledged open-model TEE chat provider exists on testnet right now
+   (gpt-oss-20b and gemma-3-27b-it are listed but unacknowledged and unreachable). The app
+   auto-picks one when 0G acknowledges it; it then still needs ≥ 1 0G via `npm run zg:fund -- --yes`.
 
 ---
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getAccountInfo, getProviderInfo, mintSessionToken } from "@/lib/server/zgCompute";
-import { hasPrivateKey, ZG } from "@/lib/server/config";
+import { pickProvider, mintSessionToken } from "@/lib/server/zgCompute";
+import { hasPrivateKey } from "@/lib/server/config";
 import { clientIp, logEvent, rateLimit } from "@/lib/server/log";
 
 export const runtime = "nodejs";
@@ -16,11 +16,11 @@ export async function POST(req: Request) {
   if (!hasPrivateKey()) {
     return NextResponse.json({ error: "0G is not configured on this server", code: "not_configured" }, { status: 503 });
   }
-  if (!rateLimit(`ai:${clientIp(req)}`, 30, 60_000)) {
-    return NextResponse.json({ error: "Too many requests, wait a minute", code: "rate_limited" }, { status: 429 });
+  if (!rateLimit(`ai:${clientIp(req)}`, 20, 10 * 60_000)) {
+    return NextResponse.json({ error: "Too many AI requests from your network. Please wait a few minutes.", code: "rate_limited" }, { status: 429 });
   }
   try {
-    const [provider, account] = await Promise.all([getProviderInfo(ZG.computeProvider), getAccountInfo(ZG.computeProvider)]);
+    const { provider, account } = await pickProvider();
     if (!account.exists || !account.acknowledged) {
       logEvent("POST /api/ai/session", "provider_not_set_up", { provider: provider.provider });
       return NextResponse.json({ error: "The app's 0G compute account for this provider is not set up", code: "not_funded", provider, account }, { status: 503 });
@@ -30,7 +30,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ provider, account, authorization, expiresAt });
   } catch (e) {
     const message = (e as Error).message.slice(0, 300);
-    logEvent("POST /api/ai/session", "session_failed", { error: message });
-    return NextResponse.json({ error: `Could not reach 0G compute: ${message}`, code: "chain_error" }, { status: 502 });
+    const noProvider = /no 0G-verified sealed chat provider/.test(message);
+    logEvent("POST /api/ai/session", noProvider ? "no_sealed_provider" : "session_failed", { error: message });
+    return NextResponse.json(
+      { error: noProvider ? message : `Could not reach 0G compute: ${message}`, code: noProvider ? "no_provider" : "chain_error" },
+      { status: noProvider ? 503 : 502 },
+    );
   }
 }

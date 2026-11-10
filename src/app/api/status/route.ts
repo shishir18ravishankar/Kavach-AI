@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAccountInfo, getProviderInfo } from "@/lib/server/zgCompute";
+import { pickProvider } from "@/lib/server/zgCompute";
 import { serverWalletAddress, walletBalance0G } from "@/lib/server/zgStorage";
 import { hasPrivateKey, ZG } from "@/lib/server/config";
 
@@ -18,7 +18,7 @@ export async function GET() {
     out.storage = { ok: false, reason: (e as Error).message.slice(0, 200) };
   }
   try {
-    const [provider, account] = await Promise.all([getProviderInfo(ZG.computeProvider), getAccountInfo(ZG.computeProvider)]);
+    const { provider, account } = await pickProvider();
     out.inference = {
       ok: account.exists && account.fundedEnough,
       reason: !account.exists ? "compute sub-account not created" : !account.fundedEnough ? `provider requires ≥1 0G locked; app has ${account.balance0G} 0G` : null,

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isEnvelope } from "@/lib/crypto/aes";
 import { sha256Hex } from "@/lib/crypto/bytes";
-import { uploadBytes } from "@/lib/server/zgStorage";
+import { uploadBytes, walletHasBudget } from "@/lib/server/zgStorage";
 import { hasPrivateKey, ZG } from "@/lib/server/config";
 import { clientIp, logEvent, rateLimit } from "@/lib/server/log";
 
@@ -19,8 +19,8 @@ export async function POST(req: Request) {
   if (!hasPrivateKey()) {
     return NextResponse.json({ error: "0G is not configured on this server (ZG_PRIVATE_KEY missing)", code: "not_configured" }, { status: 503 });
   }
-  if (!rateLimit(`up:${clientIp(req)}`, 20, 60_000)) {
-    return NextResponse.json({ error: "Too many uploads, wait a minute", code: "rate_limited" }, { status: 429 });
+  if (!rateLimit(`up:${clientIp(req)}`, 15, 10 * 60_000)) {
+    return NextResponse.json({ error: "Too many uploads from your network. Please wait a few minutes.", code: "rate_limited" }, { status: 429 });
   }
   const bytes = new Uint8Array(await req.arrayBuffer());
   if (bytes.length > MAX_BYTES) {
@@ -31,6 +31,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Only Kavach ciphertext envelopes are accepted", code: "not_ciphertext" }, { status: 400 });
   }
   const sha256 = await sha256Hex(bytes);
+  try {
+    const budget = await walletHasBudget();
+    if (!budget.ok) {
+      logEvent("POST /api/storage", "budget_exhausted", { bytes: bytes.length, balance0G: budget.balance0G });
+      return NextResponse.json(
+        { error: "The public demo's 0G testnet budget is used up for now. Your document stays encrypted on this device; try the 0G upload again later.", code: "budget_exhausted" },
+        { status: 503 },
+      );
+    }
+  } catch {
+    /* if the balance check fails, let the upload itself report the error */
+  }
   try {
     const r = await uploadBytes(bytes);
     logEvent("POST /api/storage", "stored_on_0g", { bytes: bytes.length, sha256, rootHash: r.rootHash, txHash: r.txHash, ms: Date.now() - t0 });

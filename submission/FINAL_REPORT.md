@@ -72,7 +72,8 @@ Safe to say: browser-side AES-256-GCM, ciphertext-only on 0G Storage, server nev
    | `ZG_PRIVATE_KEY` | the throwaway Galileo wallet's private key (no `NEXT_PUBLIC_` prefix!) | **yes** |
    | `ZG_RPC_URL` | `https://evmrpc-testnet.0g.ai` | no (default) |
    | `ZG_INDEXER_URL` | `https://indexer-storage-testnet-turbo.0g.ai` | no (default) |
-   | `ZG_COMPUTE_PROVIDER` | `0x1cB95Eb66Cc67C62d4DE0CC96726C5A5d82e7C85` | no (default) |
+   | `ZG_COMPUTE_PROVIDER` | leave empty: the app auto-picks a 0G-acknowledged sealed provider | no |
+   | `ZG_MIN_RESERVE_0G` | `0.02` (uploads stop below this wallet balance) | no (default) |
    | `ZG_INFERENCE_CONTRACT` | `0xa79F4c8311FF93C06b8CfB403690cc987c93F91E` | no (default) |
 
    Do **not** set `KAVACH_DEV_PROXY` on Vercel (it's for sandboxed dev only).
@@ -87,3 +88,9 @@ Notes: `/api/storage` uploads wait for on-chain finality (~8–30 s). `maxDurati
 - 0G packages: `@0gfoundation/0g-storage-ts-sdk@1.2.13` (app), `@0gfoundation/0g-compute-ts-sdk@0.9.0` (funding script only; the app talks to the contract with ethers).
 - `open-jsonrpc-provider`'s bundled axios 0.27 is overridden to 1.21.0 (fixes HTTPS proxy handling and old CVEs).
 - Built solo with Claude Code; design and scope decisions by the author.
+
+## 6. Post-hackathon update (2026-11-10)
+
+- The live site (https://kavach-ai-khaki.vercel.app) was deployed **without `ZG_PRIVATE_KEY`**, so it ran fully in local/demo mode. Setting it in Vercel turns on real 0G Storage.
+- The glm-5.3 provider is gone from the on-chain list. Two new open-model TeeML providers (gpt-oss-20b, gemma-3-27b-it) are listed but **not acknowledged by 0G** and were unreachable. The app now auto-selects from the chain and only uses acknowledged, decentralized TeeML providers, so it will start working by itself once 0G vets one (plus the 1 0G funding).
+- Added a wallet-reserve guard and tighter per-IP limits for the public demo, plus Open Graph / Twitter link-preview metadata (`public/og.png`).

@@ -9,15 +9,18 @@ import { installSandboxProxy } from "./sandbox-proxy";
 installSandboxProxy();
 import { ethers } from "ethers";
 import { createZGComputeNetworkBroker } from "@0gfoundation/0g-compute-ts-sdk";
-import { ZG, getPrivateKey } from "../src/lib/server/config";
+import { getPrivateKey } from "../src/lib/server/config";
+import { pickProvider } from "../src/lib/server/zgCompute";
 
 const GAS_RESERVE = ethers.parseEther("0.05"); // keep for 0G Storage uploads
 
 async function main() {
   const yes = process.argv.includes("--yes");
-  const provider = ZG.computeProvider;
+  const { provider: picked } = await pickProvider();
+  const provider = picked.provider;
+  console.log(`funding ${picked.model} provider ${provider}`);
   const target = ethers.parseEther(process.env.FUND_TARGET || "1.2");
-  const wallet = new ethers.Wallet(getPrivateKey(), new ethers.JsonRpcProvider(ZG.rpcUrl));
+  const wallet = new ethers.Wallet(getPrivateKey(), new ethers.JsonRpcProvider(process.env.ZG_RPC_URL || "https://evmrpc-testnet.0g.ai"));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const broker: any = await createZGComputeNetworkBroker(wallet);
   const walletBal = await wallet.provider!.getBalance(wallet.address);

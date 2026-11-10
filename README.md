@@ -4,9 +4,11 @@
 
 *Kavach (कवच) means "armour" in Hindi.* Built for ETHGlobal Mumbai on **0G Storage** and **0G Compute** (Galileo testnet).
 
+**Live demo:** https://kavach-ai-khaki.vercel.app (try "Load Brewline Coffee Co.", then open the Proof tab)
+
 ![Kavach AI cover](submission/cover.png)
 
-> **Status (Nov 6, 2026, testnet):** encryption, 0G Storage, the vault, key ceremony/recovery and sharing all work end-to-end against 0G Galileo. The sealed-inference path is fully implemented (token minting is accepted by the provider), but live answers were blocked during the build because the only open-model TeeML provider on Galileo was down and providers require ≥ 1 0G locked per account. Until that's fixed, chat runs in a clearly labelled demo mode. See [`submission/FINAL_REPORT.md`](submission/FINAL_REPORT.md).
+> **Status (testnet):** encryption, 0G Storage, the vault, key ceremony/recovery and sharing all work end-to-end against 0G Galileo. The sealed-inference path is fully implemented and picks a provider from the on-chain list automatically, but as of Nov 2026 no 0G-verified open-model TEE chat provider is available on testnet (new ones are listed but not yet acknowledged by 0G). Until one is, chat runs in a clearly labelled demo mode that never shows a fake proof. See [`submission/FINAL_REPORT.md`](submission/FINAL_REPORT.md).
 
 ---
 
@@ -20,7 +22,7 @@ Small teams paste their most sensitive data into AI chatbots every day: who thei
 |---|---|
 | Documents are unreadable outside your company | Each document is encrypted **in the browser** with its own random AES-256-GCM key. Document keys are wrapped by a company master key that never leaves the device. |
 | No central storage to breach | Only ciphertext is uploaded, to **0G Storage** (decentralised, content-addressed by Merkle root). Our API rejects anything that isn't a Kavach ciphertext envelope. |
-| The AI provider can't read your questions | The **browser** sends the prompt directly to an open model (`glm-5.3`) running inside a hardware TEE on **0G Compute** (TeeML, Phala dstack). Our server only issues a 15-minute access token. |
+| The AI provider can't read your questions | The **browser** sends the prompt directly to an open model running inside a hardware TEE on **0G Compute** (TeeML, Phala dstack). Our server only issues a 15-minute access token, and only for providers whose TEE signer 0G has acknowledged on-chain. |
 | Every answer is checkable | The browser fetches the TEE's signature for the response and verifies it locally (EIP-191) against the TEE signer address registered on-chain. Each answer shows model, provider, chat/request ID and verification status. |
 | Nothing is remembered by accident | Chats live in memory only and vanish on reload. **Save to vault** turns a chosen answer into an encrypted note. |
 | No single point of failure for the key | The master key is split with **Shamir secret sharing** into 3 co-founder shares; **any 2** recover it. One share alone reveals nothing. |
@@ -47,7 +49,7 @@ flowchart LR
   subgraph ZG["0G Galileo testnet"]
     S0[("0G Storage<br/>ciphertext by Merkle root")]
     CH["0G Chain<br/>InferenceServing contract:<br/>provider + TEE signer"]
-    TEE["0G Compute provider<br/>glm-5.3 in TEE (TeeML)"]
+    TEE["0G Compute provider<br/>open model in TEE (TeeML)"]
   end
 
   UI --> WC --> ST -->|"server wallet pays"| S0
@@ -102,7 +104,7 @@ Without `ZG_PRIVATE_KEY` the app still works: documents stay encrypted on the de
 ### Deploy to Vercel
 
 1. Import the GitHub repo in Vercel (framework: Next.js, defaults are fine; Node 22 comes from `engines`).
-2. Add environment variable **`ZG_PRIVATE_KEY`** (Production + Preview). Optional overrides are documented in [`.env.example`](.env.example).
+2. Add environment variable **`ZG_PRIVATE_KEY`** (Production + Preview), using a throwaway testnet wallet. Optional overrides are documented in [`.env.example`](.env.example).
 3. Deploy. Open `/api/status` to check that storage and inference are configured.
 
 ## Honest limits
@@ -112,6 +114,7 @@ Without `ZG_PRIVATE_KEY` the app still works: documents stay encrypted on the de
 - **The browser is the trust anchor.** The master key sits in IndexedDB. Malware on the device, a malicious browser extension, or a malicious update to this web app could steal it. That's true of every web-based end-to-end encrypted product.
 - **Metadata is visible:** document sizes, upload times, number of documents, and the app wallet's on-chain activity.
 - **Session tokens:** a token issued to the browser can spend the app's provider balance for up to 15 minutes. It's rate-limited per IP, and production would need per-user accounts.
+- **Public demo budget:** the live demo's shared testnet wallet pays for every visitor's uploads. Uploads are rate-limited per IP, and the server stops uploading when the wallet nears a small reserve (`ZG_MIN_RESERVE_0G`); documents then stay encrypted on the visitor's device.
 - **Sharing:** expiry is enforced by the Kavach viewer, not by cryptography. Revocation re-keys documents, but 0G storage is immutable, so an old link still opens the *old* version, and nothing can erase what someone already saw.
 - **Testnet + demo mode:** this build runs on Galileo testnet. If the sealed provider is unreachable or unfunded, chat says so and falls back to a **local keyword search** labelled "DEMO MODE: no AI model was used and nothing is verified". It never shows a fake proof.
 - **Not new as a category.** Private AI chat using TEEs already exists, e.g. **Maple AI** and **Confer**. Kavach's additions are (1) a company vault with **co-founder split-key recovery** (2-of-3 Shamir) and per-document keys on decentralised storage, and (2) a **vault-only memory model**: chats are ephemeral, and only answers you explicitly save are kept, encrypted.

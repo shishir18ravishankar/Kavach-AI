@@ -16,6 +16,7 @@ const INFERENCE_CONTRACT =
 
 const ABI = [
   "function getService(address provider) view returns ((address provider, string serviceType, string url, uint256 inputPrice, uint256 outputPrice, uint256 updatedAt, string model, string verifiability, string additionalInfo, address teeSignerAddress, bool teeSignerAcknowledged) service)",
+  "function getAllServices(uint256 offset, uint256 limit) view returns ((address provider, string serviceType, string url, uint256 inputPrice, uint256 outputPrice, uint256 updatedAt, string model, string verifiability, string additionalInfo, address teeSignerAddress, bool teeSignerAcknowledged)[] services, uint256 total)",
   "function getAccount(address user, address provider) view returns ((address user, address provider, uint256 nonce, uint256 balance, uint256 pendingRefund, (uint256 index, uint256 amount, uint256 createdAt, bool processed)[] refunds, string additionalInfo, bool acknowledged, uint256 validRefundsLength, uint256 generation, uint256 revokedBitmap))",
 ];
 
@@ -58,8 +59,18 @@ function contract(): ethers.Contract {
   return new ethers.Contract(INFERENCE_CONTRACT, ABI, getWallet());
 }
 
-export async function getProviderInfo(provider: string = ZG.computeProvider): Promise<ProviderInfo> {
-  const s = await contract().getService(provider);
+interface RawService {
+  provider: string;
+  serviceType: string;
+  url: string;
+  model: string;
+  verifiability: string;
+  additionalInfo: string;
+  teeSignerAddress: string;
+  teeSignerAcknowledged: boolean;
+}
+
+function toProviderInfo(s: RawService): ProviderInfo {
   let providerType: "decentralized" | "centralized" = "decentralized";
   let signingAddress: string = s.teeSignerAddress;
   let teeVerifier: string | null = null;
@@ -77,7 +88,7 @@ export async function getProviderInfo(provider: string = ZG.computeProvider): Pr
   }
   const url: string = s.url;
   return {
-    provider,
+    provider: s.provider,
     url,
     endpoint: `${url}/v1/proxy`,
     model: s.model,
@@ -91,7 +102,49 @@ export async function getProviderInfo(provider: string = ZG.computeProvider): Pr
   };
 }
 
-export async function getAccountInfo(provider: string = ZG.computeProvider): Promise<AccountInfo> {
+export async function getProviderInfo(provider: string): Promise<ProviderInfo> {
+  return toProviderInfo(await contract().getService(provider));
+}
+
+/** All sealed candidates: chatbot + TeeML + decentralized (the open model runs inside the TEE). */
+export async function listSealedProviders(): Promise<ProviderInfo[]> {
+  // The contract caps each page at 50 services.
+  const services: RawService[] = [];
+  for (let offset = 0; offset < 200; offset += 50) {
+    const [page, total] = (await contract().getAllServices(offset, 50)) as [RawService[], bigint];
+    services.push(...Array.from(page));
+    if (BigInt(offset + 50) >= total) break;
+  }
+  return services
+    .filter((s) => s.serviceType === "chatbot" && s.teeSignerAcknowledged)
+    .map(toProviderInfo)
+    .filter((p) => p.sealed);
+}
+
+let picked: { at: number; value: { provider: ProviderInfo; account: AccountInfo } } | null = null;
+
+/**
+ * The provider Kavach should use: the pinned one (ZG_COMPUTE_PROVIDER) if set,
+ * otherwise the first sealed provider our wallet has funded (≥ 1 0G), else
+ * the first sealed provider. Cached for 2 minutes per server instance.
+ */
+export async function pickProvider(): Promise<{ provider: ProviderInfo; account: AccountInfo }> {
+  if (picked && Date.now() - picked.at < 120_000) return picked.value;
+  let value: { provider: ProviderInfo; account: AccountInfo };
+  if (ZG.computeProvider) {
+    const [provider, account] = await Promise.all([getProviderInfo(ZG.computeProvider), getAccountInfo(ZG.computeProvider)]);
+    value = { provider, account };
+  } else {
+    const candidates = await listSealedProviders();
+    if (!candidates.length) throw new Error("no 0G-verified sealed chat provider (open model inside a TEE) is available on testnet right now");
+    const withAccounts = await Promise.all(candidates.map(async (p) => ({ provider: p, account: await getAccountInfo(p.provider) })));
+    value = withAccounts.find((x) => x.account.fundedEnough) ?? withAccounts.find((x) => x.account.exists) ?? withAccounts[0];
+  }
+  picked = { at: Date.now(), value };
+  return value;
+}
+
+export async function getAccountInfo(provider: string): Promise<AccountInfo> {
   try {
     const a = await contract().getAccount(getWallet().address, provider);
     const balance: bigint = a.balance;

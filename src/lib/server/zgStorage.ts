@@ -80,3 +80,18 @@ export async function walletBalance0G(): Promise<string> {
   const s = getSigner();
   return ethers.formatEther(await s.provider!.getBalance(s.address));
 }
+
+/**
+ * Public-demo guard: keep a small reserve in the shared server wallet so
+ * anonymous visitors can't drain it. Below the reserve, uploads are refused
+ * (the app then keeps the encrypted copy on the visitor's device).
+ * Balance is cached for 60 s per instance.
+ */
+const RESERVE_0G = Number(process.env.ZG_MIN_RESERVE_0G || "0.02");
+let balanceCache: { at: number; value: number } | null = null;
+export async function walletHasBudget(): Promise<{ ok: boolean; balance0G: number; reserve0G: number }> {
+  if (!balanceCache || Date.now() - balanceCache.at > 60_000) {
+    balanceCache = { at: Date.now(), value: Number(await walletBalance0G()) };
+  }
+  return { ok: balanceCache.value > RESERVE_0G, balance0G: balanceCache.value, reserve0G: RESERVE_0G };
+}
