@@ -5,8 +5,9 @@
 1. **Vercel → Project → Settings → Environment Variables → add `ZG_PRIVATE_KEY`** (the throwaway
    Galileo wallet key, Production + Preview), then **Redeploy**. The live site currently has no key,
    so nothing reaches 0G. Check afterwards: https://kavach-ai-khaki.vercel.app/api/status
-2. Optional: top up the wallet `0xF0Cb425B08BcC3733EF8B543A9c71ED6D928Ea2c` from faucet.0g.ai now
-   and then (≈0.1 0G left ≈ 80 uploads; uploads stop at a 0.02 0G reserve).
+2. **Fund storage (updated 2026-11-14):** one upload now costs ≈ 0.30–0.34 0G (gas at 1,000 gwei).
+   The wallet `0xF0Cb425B08BcC3733EF8B543A9c71ED6D928Ea2c` holds 0.0725 0G, which is not enough for one.
+   Send ≥ 0.36 0G per upload you want; ≥ 7.2 0G covers 20 uploads. Details: README "Running costs".
 3. Sealed AI: no 0G-acknowledged open-model TEE chat provider exists on testnet right now
    (gpt-oss-20b and gemma-3-27b-it are listed but unacknowledged and unreachable). The app
    auto-picks one when 0G acknowledges it; it then still needs ≥ 1 0G via `npm run zg:fund -- --yes`.
@@ -25,7 +26,7 @@
 
 - **Storage SDK:** `@0gfoundation/0g-storage-ts-sdk@1.2.13` (peer `ethers@6.13.1`). Indexer
   `https://indexer-storage-testnet-turbo.0g.ai`, RPC `https://evmrpc-testnet.0g.ai`, chain 16602.
-  Upload of a ~60 B blob ≈ 8 s, gas ≈ 0.0012 0G. Download via `downloadToBlob(root, {proof:true})` ≈ 1 s.
+  Upload of a ~60 B blob ≈ 8 s, gas ≈ 0.0012 0G at the time (4 gwei; now ~0.3 0G at 1,000 gwei). Download via `downloadToBlob(root, {proof:true})` ≈ 1 s.
 - **Compute:** two paths.
   - *Router* (`router-api.0g.ai`, API key from pc.0g.ai, `X-0G-Provider-Trust-Mode: private`) is
     **mainnet only**, so it can't be used with a testnet wallet.
@@ -71,5 +72,5 @@
 - Re-read `submission/FINAL_REPORT.md` §3 before writing the ETHGlobal description.
 
 ## Wallet
-- ~0.108 0G left in the wallet for storage (~0.0012 0G per upload). 0.3 0G sits in the glm-5.3
+- 0.0725 0G left in the wallet (2026-11-14); one upload needs ≥ 0.36 0G at today's gas price. 0.3 0G sits in the glm-5.3
   provider sub-account, 0.04 0G in the (unused, centralized) qwen sub-account, 0.01 0G in the ledger.

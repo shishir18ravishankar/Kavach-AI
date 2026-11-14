@@ -100,12 +100,33 @@ Without `ZG_PRIVATE_KEY` the app still works: documents stay encrypted on the de
 | `npm run typecheck` / `npm run lint` / `npm test` / `npm run build` | Quality gates (Vitest: 26 tests for crypto, Shamir, vault, sharing, demo engine) |
 | `npm run check:0g` | Live risk test: encrypted blob round-trip on 0G Storage + one sealed-inference call with signature verification |
 | `npm run zg:fund -- --yes` | Tops the compute sub-account for the sealed provider up to 1.2 0G (providers require ≥ 1 0G locked) |
+| `npm run zg:cost` | Measures the current upload cost (gas, storage fee, admission floor) without spending anything |
 
 ### Deploy to Vercel
 
 1. Import the GitHub repo in Vercel (framework: Next.js, defaults are fine; Node 22 comes from `engines`).
 2. Add environment variable **`ZG_PRIVATE_KEY`** (Production + Preview), using a throwaway testnet wallet. Optional overrides are documented in [`.env.example`](.env.example).
 3. Deploy. Open `/api/status` to check that storage and inference are configured.
+
+## Running costs (0G Galileo, measured 2026-11-14)
+
+Each document, saved answer or share manifest is one 0G Storage upload: one `Flow.submit` transaction paid by the server wallet. Run `npm run zg:cost` to re-measure (it spends nothing).
+
+| Item | Measured |
+|---|---|
+| Storage fee | 30,733,644,962 wei per 256-byte sector → **~0.00000025 0G** for a 2 KB document (negligible) |
+| Gas per upload | **~295k–336k gas** (estimates for 100 B–1 MB ciphertexts; a real hackathon upload used ~298k). The app budgets 360k. |
+| Gas price that gets mined | **1,000 gwei.** Nodes *admit* transactions from 100 gwei, but a 100 gwei upload sat unmined for 5+ minutes while a 1,000 gwei transaction was mined in 9 s. The RPC's suggested price (2,000 gwei) is 2× what's needed. During the hackathon (Nov 6) the price was 4 gwei. |
+| **Cost per upload** | **≈ 0.30–0.34 0G** spent; the wallet must hold **≥ 0.36 0G** for the next upload to be attempted |
+| **20 uploads** | **≈ 6.0–6.7 0G** spent; keep **≥ 7.2 0G** in the wallet (plus the 0.005 0G reserve) |
+| Loading the demo company | 3 uploads ≈ 0.9–1.0 0G spent (needs ≥ 1.08 0G available) |
+
+How the server pays (`src/lib/server/uploadCost.ts`, `src/lib/server/zgStorage.ts`):
+- It pays 1,000 gwei instead of the RPC suggestion. If a node rejects that with a higher stated minimum, it moves up to that minimum (a rejection costs nothing) and drops back after 10 minutes. It never pays more than `ZG_MAX_GAS_PRICE_GWEI` (default 2,000).
+- Before every upload it checks the balance against the real cost. If the wallet can't pay, the API answers `503 budget_exhausted` with the numbers, and the document stays encrypted on the visitor's device. `/api/status` shows `costPerUpload0G` and `uploadsAffordable`.
+- If an earlier transaction from the wallet is stuck in the mempool, the next upload reuses its nonce at 2× price, replacing it instead of queuing behind it forever.
+
+Why the live site failed on Nov 14: the SDK paid the RPC's 2,000 gwei suggestion, so one upload needed ~0.67 0G while the wallet held 0.09 0G. Depending on which check tripped first, that surfaced as `insufficient funds` or, during gas estimation, as `execution reverted … require(false)`. The node caps the simulated gas at balance ÷ gas price (0.09 0G ÷ 2,000 gwei = 46,764 gas, versus the ~310k needed), so the simulated submit runs out of gas. The supplier contract itself was fine: the same submission estimates normally at 4 or 100 gwei. It wasn't a duplicate and it wasn't the storage fee.
 
 ## Honest limits
 
@@ -114,7 +135,7 @@ Without `ZG_PRIVATE_KEY` the app still works: documents stay encrypted on the de
 - **The browser is the trust anchor.** The master key sits in IndexedDB. Malware on the device, a malicious browser extension, or a malicious update to this web app could steal it. That's true of every web-based end-to-end encrypted product.
 - **Metadata is visible:** document sizes, upload times, number of documents, and the app wallet's on-chain activity.
 - **Session tokens:** a token issued to the browser can spend the app's provider balance for up to 15 minutes. It's rate-limited per IP, and production would need per-user accounts.
-- **Public demo budget:** the live demo's shared testnet wallet pays for every visitor's uploads. Uploads are rate-limited per IP, and the server stops uploading when the wallet nears a small reserve (`ZG_MIN_RESERVE_0G`); documents then stay encrypted on the visitor's device.
+- **Public demo budget:** the live demo's shared testnet wallet pays for every visitor's uploads. Uploads are rate-limited per IP, and the server refuses an upload when the wallet can't cover its real cost (see "Running costs"; ≈ 0.36 0G per upload at today's prices); documents then stay encrypted on the visitor's device.
 - **Sharing:** expiry is enforced by the Kavach viewer, not by cryptography. Revocation re-keys documents, but 0G storage is immutable, so an old link still opens the *old* version, and nothing can erase what someone already saw.
 - **Testnet + demo mode:** this build runs on Galileo testnet. If the sealed provider is unreachable or unfunded, chat says so and falls back to a **local keyword search** labelled "DEMO MODE: no AI model was used and nothing is verified". It never shows a fake proof.
 - **Not new as a category.** Private AI chat using TEEs already exists, e.g. **Maple AI** and **Confer**. Kavach's additions are (1) a company vault with **co-founder split-key recovery** (2-of-3 Shamir) and per-document keys on decentralised storage, and (2) a **vault-only memory model**: chats are ephemeral, and only answers you explicitly save are kept, encrypted.

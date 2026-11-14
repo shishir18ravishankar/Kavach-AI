@@ -46,7 +46,7 @@ Never tested live, so verify before claiming:
 3. `npm run check:0g`. It must print an answer, a chat ID and `TEE signature valid … true`.
 4. If the glm-5.3 provider is still down, ask the 0G booth for another **decentralized TeeML** provider on Galileo and set `ZG_COMPUTE_PROVIDER` to it. Don't use `0xd6269e…C940` (qwen via Alibaba Cloud): it is `ProviderType: centralized`, so the upstream sees prompts. The app refuses non-sealed providers on purpose.
 
-Also: the wallet has **~0.108 0G** left for storage (~0.0012 0G per upload, so roughly 80 uploads). Each demo load uses 3.
+Storage costs changed after the hackathon. See §7: one upload now costs ≈ 0.30–0.34 0G (it was ~0.0012 0G on Nov 6). Each demo load uses 3 uploads.
 
 ## 3. Claims to remove or soften in your ETHGlobal description
 
@@ -73,7 +73,9 @@ Safe to say: browser-side AES-256-GCM, ciphertext-only on 0G Storage, server nev
    | `ZG_RPC_URL` | `https://evmrpc-testnet.0g.ai` | no (default) |
    | `ZG_INDEXER_URL` | `https://indexer-storage-testnet-turbo.0g.ai` | no (default) |
    | `ZG_COMPUTE_PROVIDER` | leave empty: the app auto-picks a 0G-acknowledged sealed provider | no |
-   | `ZG_MIN_RESERVE_0G` | `0.02` (uploads stop below this wallet balance) | no (default) |
+   | `ZG_GAS_PRICE_GWEI` | `1000` (gas price paid; the lowest seen to get mined) | no (default) |
+   | `ZG_MAX_GAS_PRICE_GWEI` | `2000` (never pay more) | no (default) |
+   | `ZG_MIN_RESERVE_0G` | `0.005` (kept on top of one upload's real cost) | no (default) |
    | `ZG_INFERENCE_CONTRACT` | `0xa79F4c8311FF93C06b8CfB403690cc987c93F91E` | no (default) |
 
    Do **not** set `KAVACH_DEV_PROXY` on Vercel (it's for sandboxed dev only).
@@ -94,3 +96,21 @@ Notes: `/api/storage` uploads wait for on-chain finality (~8–30 s). `maxDurati
 - The live site (https://kavach-ai-khaki.vercel.app) was deployed **without `ZG_PRIVATE_KEY`**, so it ran fully in local/demo mode. Setting it in Vercel turns on real 0G Storage.
 - The glm-5.3 provider is gone from the on-chain list. Two new open-model TeeML providers (gpt-oss-20b, gemma-3-27b-it) are listed but **not acknowledged by 0G** and were unreachable. The app now auto-selects from the chain and only uses acknowledged, decentralized TeeML providers, so it will start working by itself once 0G vets one (plus the 1 0G funding).
 - Added a wallet-reserve guard and tighter per-IP limits for the public demo, plus Open Graph / Twitter link-preview metadata (`public/og.png`).
+
+## 7. Storage cost incident and fix (2026-11-14)
+
+**Symptom on the live site:** uploads failed with `insufficient funds` (customers.csv, price sheet) and `execution reverted (require(false))` on estimateGas (supplier contract), with the wallet at ~0.09 0G.
+
+**Measured (`npm run zg:cost`, plus real transactions):**
+- Storage fee: ~0.00000025 0G per 2 KB document (negligible).
+- Gas: ~295k–336k per upload (budgeted at 360k).
+- Galileo's RPC now suggests 2,000 gwei. Nodes admit transactions from 100 gwei, but a 100 gwei upload (tx `0x51723ed9…7026`) was never mined, while a 1,000 gwei transaction (`0x9d9e66b9…af01`) was mined in 9 s.
+- **Cost per upload ≈ 0.30–0.34 0G at 1,000 gwei. The wallet must hold ≥ 0.36 0G to attempt one upload, and ≥ 7.2 0G for 20.** (On Nov 6 it was ~0.0012 0G at 4 gwei.)
+
+**Root cause:** both errors are the same problem, a gas price far above what the balance could pay. The `require(false)` is the node capping simulated gas at balance ÷ price (46,764 gas), so the submit runs out of gas in simulation. It wasn't specific to the supplier contract, a duplicate, or the storage fee.
+
+**Fix:** pay 1,000 gwei, not the 2,000 gwei suggestion; follow a higher node-stated minimum; replace stuck transactions; check the balance against the real cost before uploading; return a clear `503 budget_exhausted`.
+
+**Test:** a real browser run against a production build uploaded the three demo files. All three were refused cleanly in about 2.5 s each, the documents stayed encrypted on the device, the banner showed the numbers, and **0 0G was spent**. A successful mined upload could not be completed because the wallet holds 0.0725 0G, less than the 0.36 0G one upload needs. **To fund it:** send ≥ 0.36 0G (1 upload) or ≥ 7.2 0G (20 uploads) to `0xF0Cb425B08BcC3733EF8B543A9c71ED6D928Ea2c`.
+
+Cost of the investigation: 0.021 0G for the transaction that replaced the stuck 100 gwei upload.
