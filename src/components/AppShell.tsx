@@ -28,10 +28,13 @@ export function StatusBanner() {
   if (!status) return null;
   if (!status.configured)
     return <div className="bg-warn-soft px-4 py-2 text-center text-xs font-semibold text-warn">0G unavailable, demo mode: server has no 0G wallet configured. Documents stay encrypted on this device only.</div>;
-  if (status.inference && !status.inference.ok)
+  const storageMsg = status.storage && !status.storage.ok ? `0G Storage paused (${status.storage.reason ?? "unavailable"}); new documents stay encrypted on this device.` : null;
+  const aiMsg = status.inference && !status.inference.ok ? `Sealed AI unavailable, chat runs in demo mode: ${status.inference.reason}.` : null;
+  if (storageMsg || aiMsg)
     return (
-      <div className="bg-warn-soft px-4 py-2 text-center text-xs font-semibold text-warn">
-        0G sealed inference unavailable, demo mode for chat: {status.inference.reason}. Storage on 0G {status.storage?.ok ? "is working" : "is also unavailable"}.
+      <div className="space-y-0.5 bg-warn-soft px-4 py-2 text-center text-xs font-semibold text-warn">
+        {storageMsg && <p>{storageMsg}</p>}
+        {aiMsg && <p>{aiMsg}</p>}
       </div>
     );
   return null;

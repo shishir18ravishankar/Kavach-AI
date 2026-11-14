@@ -12,7 +12,8 @@
     "test": "vitest run",
     "check:0g": "tsx scripts/check-0g.ts",
     "zg:fund": "tsx scripts/fund-compute.ts",
-    "prebuild": "node scripts/copy-pdf-worker.mjs"
+    "prebuild": "node scripts/copy-pdf-worker.mjs",
+    "zg:cost": "tsx scripts/storage-cost.ts"
   },
   "dependencies": {
     "@0gfoundation/0g-storage-ts-sdk": "1.2.13",

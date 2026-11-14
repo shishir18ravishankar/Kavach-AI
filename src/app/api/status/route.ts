@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { pickProvider } from "@/lib/server/zgCompute";
-import { serverWalletAddress, walletBalance0G } from "@/lib/server/zgStorage";
+import { serverWalletAddress, walletHasBudget } from "@/lib/server/zgStorage";
 import { hasPrivateKey, ZG } from "@/lib/server/config";
 
 export const runtime = "nodejs";
@@ -13,7 +13,13 @@ export async function GET() {
   }
   const out: Record<string, unknown> = { configured: true, network: "0G Galileo testnet", chainId: ZG.chainId };
   try {
-    out.storage = { ok: true, wallet: serverWalletAddress(), balance0G: await walletBalance0G(), indexer: ZG.indexerUrl };
+    const budget = await walletHasBudget();
+    out.storage = {
+      reason: budget.ok ? null : `wallet has ${budget.balance0G} 0G; one upload needs about ${budget.costPerUpload0G} 0G at ${budget.gasPriceGwei} gwei`,
+      wallet: serverWalletAddress(),
+      ...budget,
+      indexer: ZG.indexerUrl,
+    };
   } catch (e) {
     out.storage = { ok: false, reason: (e as Error).message.slice(0, 200) };
   }
